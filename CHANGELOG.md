@@ -1,5 +1,9 @@
 # Changelog Q Applet Stock Quote - USA
 
+## Version 1.0.11 - Sept 23, 2024
+
+Switched to Yahoo finance to retrieve stock data.
+
 ## Version 1.0.10 - Jun 20, 2019
 
 Updated image.

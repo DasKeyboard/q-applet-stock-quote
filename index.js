@@ -1,9 +1,6 @@
 const q = require('daskeyboard-applet');
-const request = require('request-promise');
+const yahooFinance = require('yahoo-finance2').default;
 const logger = q.logger;
-
-const apiUrl = 'https://cloud.iexapis.com/v1';
-
 
 function round(number) {
   return number.toFixed(2);
@@ -25,21 +22,23 @@ class StockQuote extends q.DesktopApp {
     this.pollingInterval = 30 * 60 * 1000;
   }
 
-  getQuote(symbol) {
-    return request.get({
-      url: apiUrl + `/stock/${symbol.trim().toUpperCase()}/quote?token=${this.token}`,
-      json: true
-    });
+  async getQuote(symbol) {
+    try {
+      const quote = await yahooFinance.quote(symbol.trim().toUpperCase());
+      return quote;
+    } catch (error) {
+      throw new Error(`Failed to fetch stock data for ${symbol}: ${error.message}`);
+    }
   }
 
   generateSignal(quote) {
     const symbol = quote.symbol;
-    const companyName = quote.companyName;
-    const previousClose = quote.previousClose * 1;
-    const latestPrice = quote.latestPrice * 1;
+    const companyName = quote.longName || symbol;
+    const previousClose = quote.regularMarketPreviousClose;
+    const latestPrice = quote.regularMarketPrice;
 
-    const change = formatChange((latestPrice - previousClose));
-    const changePercent = formatChange(change / previousClose * 100);
+    const change = formatChange(latestPrice - previousClose);
+    const changePercent = formatChange((latestPrice - previousClose) / previousClose * 100);
 
     const color = (latestPrice >= previousClose) ? '#00FF00' : '#FF0000';
 
@@ -48,13 +47,13 @@ class StockQuote extends q.DesktopApp {
         [new q.Point(color)]
       ],
       link: {
-        url: 'https://iextrading.com/apps/stocks/'+`${symbol}`,
-        label: 'Show in IEX',
+        url: `https://finance.yahoo.com/quote/${symbol}`,
+        label: 'Show in Yahoo Finance',
       },
       name: `Stock Quote: ${symbol}`,
       message: `${symbol} (${companyName}): ` +
-        `USD ${latestPrice} (${change} ${changePercent}%)` +
-        `<br/>Previous close: USD ${previousClose}`
+        `USD ${round(latestPrice)} (${change} ${changePercent}%)` +
+        `<br/>Previous close: USD ${round(previousClose)}`
     });
   }
 
@@ -67,14 +66,7 @@ class StockQuote extends q.DesktopApp {
         return this.generateSignal(quote);
       }).catch((error) => {
         logger.error("Error while getting stock quote USA:" + error);
-        if(`${error.message}`.includes("getaddrinfo")){
-          // Do not signal
-          // return q.Signal.error(
-          //   'The Stock Quote USA service returned an error. <b>Please check your internet connection</b>.'
-          // );
-        }else{
-          return q.Signal.error([`The Stock Quote USA service returned an error. Detail: ${error}`]);
-        }
+        return q.Signal.error([`The Stock Quote USA service returned an error. Detail: ${error}`]);
       });
     } else {
       logger.info("No symbol configured.");
@@ -85,13 +77,6 @@ class StockQuote extends q.DesktopApp {
   async applyConfig() {
     const symbol = this.config.symbol;
 
-    var tokenRequest = await request.get({
-        url: `https://q.daskeyboard.com/api/1.0/misc/get_stock_quote_token`,
-        json: true
-      });
-
-    this.token = tokenRequest.value;
-
     if (symbol) {
       return this.getQuote(symbol).then((response) => {
         return true;
@@ -101,7 +86,6 @@ class StockQuote extends q.DesktopApp {
     }
   }
 }
-
 
 module.exports = {
   formatChange: formatChange,

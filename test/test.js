@@ -5,15 +5,20 @@ const companyName = 'Apple Inc.';
 
 describe('getQuote', function () {
   it('can get a quote', function () {
-    return t.getQuote(symbol).then((quote) => {
+    return new t.StockQuote().getQuote(symbol).then((quote) => {
+      console.log('+quote:', quote);
       assert.ok(quote, 'Quote was not truthy.');
+      
+      // Check if the symbol matches
       assert.equal(symbol, quote.symbol, 'Symbol does not match: ' + symbol);
-      assert.ok(quote.open, 'quote.open was not truthy.');
-      assert.ok(quote.latestPrice, 'quote.latestPrice was not truthy.');
+      
+      // Check if the new Yahoo Finance fields are truthy
+      assert.ok(quote.regularMarketOpen, 'quote.regularMarketOpen was not truthy.');
+      assert.ok(quote.regularMarketPrice, 'quote.regularMarketPrice was not truthy.');
     }).catch((error) => {
       assert.fail(error);
-    })
-  })
+    });
+  });
 });
 
 describe('formatChange', function () {
